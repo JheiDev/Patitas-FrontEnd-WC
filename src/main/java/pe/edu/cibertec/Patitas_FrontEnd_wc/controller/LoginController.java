@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import pe.edu.cibertec.Patitas_FrontEnd_wc.DTO.LoginRequestDTO;
 import pe.edu.cibertec.Patitas_FrontEnd_wc.DTO.LoginResponseDTO;
 import pe.edu.cibertec.Patitas_FrontEnd_wc.ViewModel.LoginModel;
+import reactor.core.publisher.Mono;
 
 
 @Controller
@@ -45,18 +46,58 @@ public class LoginController {
 
         }
 
-        LoginRequestDTO loginRequestDTO = new LoginRequestDTO(tipoDocumento, numeroDocumento, password);
 
         try {
-            // Realizar la solicitud con WebClient
+
+            // Invocar servicio de autenticación
+            //String endpoint = "http://localhost:8090/autenticacion/login";
+            LoginRequestDTO loginRequestDTO = new LoginRequestDTO(tipoDocumento, numeroDocumento, password);
+            //LoginResponseDTO loginResponseDTO = webClientAuthentication.postForObject("/login", loginRequestDTO, LoginResponseDTO.class);
+
+            Mono<LoginResponseDTO> monoLoginResponseDTO = webClientAuthentication.post()
+                    .uri("/inicio")
+                    .body(Mono.just(loginRequestDTO), LoginRequestDTO.class)
+                    .retrieve()
+                    .bodyToMono(LoginResponseDTO.class);
+
+            // Bloquear la respuesta para obtener el resultado bloqueante o sincronico
+            LoginResponseDTO loginResponseDTO = monoLoginResponseDTO.block();
+
+            if (loginResponseDTO.codigo().equals("00")){
+
+                LoginModel loginModel = new LoginModel("00", "", loginResponseDTO.nombreUsuario());
+                model.addAttribute("loginModel", loginModel);
+                return "principal";
+
+            } else {
+
+                LoginModel loginModel = new LoginModel("02", "Error: Autenticación fallida", "");
+                model.addAttribute("loginModel", loginModel);
+                return "inicio";
+
+            }
+
+        } catch(Exception e) {
+
+            LoginModel loginModel = new LoginModel("99", "Error: Ocurrió un problema en la autenticación", "");
+            model.addAttribute("loginModel", loginModel);
+            System.out.println(e.getMessage());
+            return "inicio";
+
+        }
+
+
+        /*try {
+
+            LoginRequestDTO loginRequestDTO = new LoginRequestDTO(tipoDocumento, numeroDocumento, password);
+
             LoginResponseDTO response = webClientAuthentication
                     .post()
-                    .uri("/login")
+                    .uri("http://localhost:8081/vehiculo/inicio")
                     .bodyValue(loginRequestDTO)
                     .retrieve()
                     .bodyToMono(LoginResponseDTO.class)
                     .block();
-
 
             if (response != null && "00".equals(response.codigo())) {
                 model.addAttribute("loginModel", response);
@@ -68,7 +109,7 @@ public class LoginController {
         } catch (WebClientResponseException e) {
             model.addAttribute("loginModel", new LoginModel("99", "Error de conexión al servidor", ""));
             return "inicio";
-        }
+        }*/
 
     }
 
